@@ -1,9 +1,9 @@
 use anyhow::Result;
-use smol::Task;
+use tokio::task::JoinHandle;
 use wasmtime::{Engine, Limits, Linker, Memory, MemoryType, Module, Store, Val};
 
 use super::imports::create_lunatic_imports;
-use super::{AsyncYielderCast, ProcessEnvironment, ASYNC_POOL, EXECUTOR};
+use super::{AsyncYielderCast, ProcessEnvironment, ASYNC_POOL};
 use crate::wasi::create_wasi_imports;
 
 /// Used to look up a function by name or table index inside of an Instance.
@@ -27,7 +27,7 @@ pub fn spawn(
     module: Module,
     function: FunctionLookup,
     memory: MemoryChoice,
-) -> Task<Result<()>> {
+) -> JoinHandle<Result<()>> {
     let task = ASYNC_POOL.with_tls(
         [&wasmtime_runtime::traphandlers::tls::PTR],
         move |yielder| {
@@ -69,7 +69,7 @@ pub fn spawn(
         },
     );
 
-    EXECUTOR.spawn(async {
+    tokio::task::spawn(async {
         let mut task = task?;
         let result = (&mut task).await.unwrap();
         ASYNC_POOL.recycle(task);

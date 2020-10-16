@@ -8,7 +8,7 @@ use async_wormhole::AsyncYielder;
 use anyhow::Result;
 use crossbeam::queue::SegQueue;
 use lazy_static::lazy_static;
-use smol::{Executor, Task};
+use tokio::task::JoinHandle;
 use wasmtime::{Engine, Module};
 
 use std::cell::{RefCell, UnsafeCell};
@@ -21,7 +21,6 @@ pub type AsyncYielderCast<'a> = AsyncYielder<'a, Result<()>>;
 
 lazy_static! {
     static ref ASYNC_POOL: OneMbAsyncPool = OneMbAsyncPool::new(128);
-    pub static ref EXECUTOR: Executor<'static> = Executor::new();
     pub static ref RESOURCES: GlobalResources = GlobalResources::new();
 }
 
@@ -78,7 +77,7 @@ impl ProcessEnvironment {
 
 /// A lunatic process represents an actor.
 pub struct Process {
-    task: RefCell<Option<Task<Result<()>>>>,
+    task: RefCell<Option<JoinHandle<Result<()>>>>,
 }
 
 impl fmt::Debug for Process {
@@ -98,13 +97,13 @@ impl Clone for Process {
 }
 
 impl Process {
-    pub fn from(task: Task<Result<()>>) -> Self {
+    pub fn from(task: JoinHandle<Result<()>>) -> Self {
         Self {
             task: RefCell::new(Some(task)),
         }
     }
 
-    pub fn take(&mut self) -> Option<Task<Result<()>>> {
+    pub fn take(&mut self) -> Option<JoinHandle<Result<()>>> {
         self.task.get_mut().take()
     }
 }
@@ -172,18 +171,7 @@ impl GlobalResources {
         *ref_count -= 1;
 
         if *ref_count == 0 {
-            let drop = resource_rc.get_mut().take();
-            match drop.unwrap() {
-                // If we are dropping a process we need to detach it first or it will be canceled.
-                Resource::Process(mut process) => {
-                    // If we joined the process is gone already.
-                    match process.take() {
-                        Some(task) => task.detach(),
-                        None => (), // Task already consumed
-                    }
-                }
-                _ => (),
-            };
+            let _drop = resource_rc.get_mut().take();
             self.free.push(index);
         }
     }
