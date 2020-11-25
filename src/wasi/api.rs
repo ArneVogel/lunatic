@@ -1,11 +1,11 @@
-use super::types::*;
+use super::{wasi_snapshot_preview1::LunaticWasiCtx, types::*};
 
 use crate::process::ProcessEnvironment;
 
 use anyhow::Result;
 use smol::net::TcpStream;
 use smol::prelude::{AsyncReadExt, AsyncWriteExt};
-use wasmtime::{ExternRef, Func, FuncType, Linker, Trap, ValType::*};
+use wasmtime::{ExternRef, Func, FuncType, Linker, Store, Trap, ValType::*};
 
 use std::cell::RefCell;
 use std::fmt;
@@ -22,7 +22,16 @@ impl fmt::Display for ExitCode {
 
 impl std::error::Error for ExitCode {}
 
-pub fn add_to_linker(linker: &mut Linker, environment: &ProcessEnvironment) -> Result<()> {
+pub fn add_to_linker(store: &Store, linker: &mut Linker, environment: &ProcessEnvironment) -> Result<()> {
+    use wasmtime::*;
+    //use wasmtime_wasi::{Wasi, WasiCtx};
+    //let wasi = Wasi::new(&store, WasiCtx::new(std::env::args())?);
+    use wasmtime_wasi::{WasiCtx};
+    use super::wasi_snapshot_preview1::Wasi;
+    let wasi = Wasi::new(&store, LunaticWasiCtx(WasiCtx::new(std::env::args())?));
+    wasi.add_to_linker(linker)?;
+    return Ok(());
+
     // proc_exit(exit_code)
     linker.func(
         "wasi_snapshot_preview1",

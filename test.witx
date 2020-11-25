@@ -1,0 +1,9 @@
+(module $atoms
+  (@interface func (export "fun1")
+    (param $an_int u32)
+    (result $error f32))
+  (@interface func (export "fun2")
+    (param $an_int u32)
+    (result $error f32)
+    (result $doubled_it f32))
+)

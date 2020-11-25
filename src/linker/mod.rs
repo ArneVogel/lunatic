@@ -45,7 +45,7 @@ impl LunaticLinker {
         networking::api::add_to_linker(&mut linker, &environment)?;
         process::api::add_to_linker(&mut linker, &environment)?;
         channel::api::add_to_linker(&mut linker, &environment)?;
-        wasi::api::add_to_linker(&mut linker, &environment)?;
+        wasi::api::add_to_linker(&store, &mut linker, &environment)?;
 
         Ok(Self {
             store,
